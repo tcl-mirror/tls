@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# RCS: @(#) $Id: remote.tcl,v 1.2 2000/06/03 02:30:03 awb Exp $
+# RCS: @(#) $Id: remote.tcl,v 1.3 2000/06/03 05:01:32 awb Exp $
 
 # load tls package
 package require tls
@@ -124,7 +124,7 @@ if {![info exists serverPort]} {
     }
 }
 if {![info exists serverPort]} {
-    set serverPort 2048
+    set serverPort 8048
 }
 
 if {![info exists serverAddress]} {
