@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 1997-2000 Matt Newman <matt@novadigm.com>
  *
- * $Header: /cvsroot/tls/tls/tlsBIO.c,v 1.5 2000/08/18 19:17:36 hobbs Exp $
+ * $Header: /cvsroot/tls/tls/tlsBIO.c,v 1.6 2002/02/04 22:46:31 hobbs Exp $
  *
  * Provides BIO layer to interface openssl to Tcl.
  */
@@ -15,7 +15,7 @@
 static int BioWrite	_ANSI_ARGS_ ((BIO *h, CONST char *buf, int num));
 static int BioRead	_ANSI_ARGS_ ((BIO *h, char *buf, int num));
 static int BioPuts	_ANSI_ARGS_ ((BIO *h, CONST char *str));
-static long BioCtrl	_ANSI_ARGS_ ((BIO *h, int cmd, long arg1, CONST char *ptr));
+static long BioCtrl	_ANSI_ARGS_ ((BIO *h, int cmd, long arg1, void *ptr));
 static int BioNew	_ANSI_ARGS_ ((BIO *h));
 static int BioFree	_ANSI_ARGS_ ((BIO *h));
 
@@ -137,7 +137,7 @@ BioCtrl	(bio, cmd, num, ptr)
     BIO *bio;
     int cmd;
     long num;
-    CONST char *ptr;
+    void *ptr;
 {
     Tcl_Channel chan = Tls_GetParent((State*)bio->ptr);
     long ret = 1;
