@@ -4,6 +4,14 @@ dnl
 dnl This file is an input file used by the GNU "autoconf" program to
 dnl generate the file "configure", which is run during Tcl
 dnl installation to configure the system for the local environment.
+dnl 
+dnl This file contains code to generate "tls" using either the
+dnl OpenSSL libraries or libraries from the commercial BSAFE SSL-C
+dnl product from RSA Security.  In the United States, it is necessary
+dnl to use the RSA BSAFE libraries for any product developed for
+dnl commercial use. Licensing information for BSAFE SSL-C may be
+dnl obtained from RSA Data Scurity Inc., San Mateo, California, USA.
+dnl Their home page on the web is "www.rsasecurity.com". 
 
 
 #--------------------------------------------------------------------
@@ -12,6 +20,9 @@ dnl installation to configure the system for the local environment.
 
 AC_INIT(tls.h)
 
+AC_CONFIG_AUX_DIR(config)
+CONFIGDIR=${srcdir}/config
+AC_SUBST(CONFIGDIR)
 
 #--------------------------------------------------------------------
 # Set package name and version numbers here.  The NODOT_VERSION is
@@ -41,29 +52,96 @@ AC_SUBST(VERSION)
 eval AC_DEFINE_UNQUOTED(VERSION, "${VERSION}")
 eval AC_DEFINE_UNQUOTED(PACKAGE, "${PACKAGE}")
 
+#--------------------------------------------------------------------
+# If the variable OPENSSL is set, we will build with the OpenSSL
+# libraries.  If it is not set, then we will use RSA BSAFE SSL-C
+# libraries instead of the default OpenSSL libaries.
+#--------------------------------------------------------------------
+
+OPENSSL="1"
+
+AC_ARG_ENABLE(bsafe, [  --enable-bsafe  Use RSA BSAFE SSL-C libraries instead of the default OpenSSL libraries.], OPENSSL="", OPENSSL="1")
 
 #--------------------------------------------------------------------
 # Establish the location of the root directory for OpenSSL.
+# If we're not using OpenSSL, set the root for BSAFE SSL-C.
+# If we're using BSAFE, define the BSAFE compiler flag.
+# The "FLAT_INC" flag is used in the BSAFE ssl.h header file and
+# doesn't seem to be referenced anywhere else.
 #--------------------------------------------------------------------
 
-SSL_DIR='/usr/local/openssl'
+if test -n "${OPENSSL}"; then
+    SSL_DIR='/usr/local/openssl'
+else
+    SSL_DIR='/use/local/sslc'
+    AC_DEFINE(BSAFE)
+    AC_DEFINE(FLAT_INC)
+fi
+
+#--------------------------------------------------------------------
+# If we're using RSA BSAFE SSL-C, we need to establish what platform
+# we're running on before we can figure out some paths.
+# This step isn't necessary if we're using OpenSSL.
+#--------------------------------------------------------------------
+
+
+if test -z "${OPENSSL}"; then
+    AC_MSG_CHECKING(host type)
+    case "`uname -s`" in
+	*win32* | *WIN32* | *CYGWIN_NT*|*CYGWIN_98*|*CYGWIN_95*)
+	    PLATFORM=WIN32
+	    AC_DEFINE(WINDOWS)
+	    ;;
+	*SunOS*)
+	    PLATFORM=SOLARIS
+	    ;;
+	HP-UX)
+	    PLATFORM=HPUX
+	    ;;
+	*)
+	    PLATFORM=LINUX
+	    ;;
+    esac
+    AC_MSG_RESULT(${PLATFORM})
+fi
 
 AC_ARG_WITH(ssl-dir, [  --with-ssl-dir=DIR  SSL root directory], SSL_DIR=$withval)
 
-if test -z "${SSL_DIR}"; then
-    AC_ERROR(must specify SSL directory)
-fi
-if test ! -f "${SSL_DIR}/include/openssl/opensslv.h"; then
-    AC_ERROR(bad ssl-dir: cant find opensslv.h under ${SSL_DIR})
+if test ! -d "${SSL_DIR}"; then
+    AC_ERROR(${SSL_DIR} is not a valid directory)
 fi
 
-SSL_LIB_DIR=${SSL_DIR}/lib
-SSL_INCLUDE_DIR=${SSL_DIR}/include
+#--------------------------------------------------------------------
+# The OpenSSL and BSAFE SSL-C directory structures differ.
+#--------------------------------------------------------------------
+
+if test -n "${OPENSSL}"; then
+    SSL_LIB_DIR=${SSL_DIR}/lib
+    SSL_INCLUDE_DIR=${SSL_DIR}/include
+    if test ! -f "${SSL_INCLUDE_DIR}/openssl/opensslv.h"; then
+        AC_ERROR(bad ssl-dir: cannot find openssl/opensslv.h under ${SSL_INCLUDE_DIR})
+    fi
+else
+    SSL_LIB_DIR=${SSL_DIR}/${PLATFORM}/library/lib
+    SSL_INCLUDE_DIR=${SSL_DIR}/${PLATFORM}/library/include
+    if test ! -f "${SSL_INCLUDE_DIR}/crypto.h"; then
+        AC_ERROR(bad ssl-dir: cannot find crypto.h under ${SSL_INCLUDE_DIR})
+    fi
+fi
 
 AC_SUBST(SSL_DIR)
 AC_SUBST(SSL_LIB_DIR)
 AC_SUBST(SSL_INCLUDE_DIR)
 
+#--------------------------------------------------------------------
+# Determine if we should use the patented encryption code
+#--------------------------------------------------------------------
+
+AC_ARG_ENABLE(patents, [  enable or disable patented code.  Default is patented code enabled.], PATENTS=${enableval}, PATENTS=yes)  
+
+if test ${PATENTS} = no; then
+    AC_DEFINE("NO_PATENTS")
+fi
 
 #--------------------------------------------------------------------
 # Check whether --enable-gcc or --disable-gcc was given.  Do this 
@@ -75,6 +153,32 @@ AC_SUBST(SSL_INCLUDE_DIR)
 SC_ENABLE_GCC
 AC_PROG_INSTALL
 
+#--------------------------------------------------------------------
+# If OpenSSL was built with gcc then there may be some symbols that need
+# resolving before we can load it into tclsh (__udivd3i on solaris.  Let the
+# user specify if we need to add libgcc to the link line to resolve these
+# symbols.
+#
+# This doesn't seem to be necessary if the RSA BSAFE SSL-C libraries
+# are used instead of OpenSSL.
+#--------------------------------------------------------------------
+
+if test -n "${OPENSSL}"; then
+
+    AC_MSG_CHECKING(if libgcc is needed to resolve openssl symbols)
+
+    AC_ARG_WITH(gcclib, [  --with-gcclib         link with libgcc to resolve symbols in a gcc-built openssl library], GCCLIB="-lgcc", GCCLIB="")
+
+    if test "x${GCCLIB}" = "x" ; then
+        AC_MSG_RESULT(no)
+    else
+        AC_MSG_RESULT(yes)
+        AC_MSG_CHECKING(for gcc library location)
+        GCCPATH=`${CC} -print-libgcc-file-name | sed -e 's#[^/]*$##'`
+        GCCPATH="-L${GCCPATH}"
+        AC_MSG_RESULT(${GCCPATH})
+    fi
+fi
 
 #--------------------------------------------------------------------
 # Checks to see if the make program sets the $MAKE variable.
@@ -115,15 +219,18 @@ AC_EXEEXT
 #--------------------------------------------------------------------
 
 case "`uname -s`" in
-    *win32* | *WIN32* | *CYGWIN_NT*)
+    *win32* | *WIN32* | *CYGWIN_NT*|*CYGWIN_98*|*CYGWIN_95*)
 	CYGPATH="cygpath -w"
+	RELPATH=".. .. bin"
     ;;
     *)
 	CYGPATH=echo
+	RELPATH=".."
     ;;
 esac
 
 AC_SUBST(CYGPATH)
+AC_SUBST(RELPATH)
 
 SSL_INCLUDE_DIR_NATIVE=\"`${CYGPATH} ${SSL_INCLUDE_DIR}`\"
 AC_SUBST(SSL_INCLUDE_DIR_NATIVE)
@@ -152,7 +259,7 @@ SC_PRIVATE_TCL_HEADERS
 #--------------------------------------------------------------------
 
 case "`uname -s`" in
-    *win32* | *WIN32* | *CYGWIN_NT*)
+    *win32* | *WIN32* | *CYGWIN_NT*|*CYGWIN_98*|*CYGWIN_95*)
 	AC_DEFINE_UNQUOTED(BUILD_${PACKAGE})
 	CLEANFILES="*.lib *.dll *.exp *.ilk *.pdb vc50.pch"
 	AC_SUBST(CLEANFILES)
@@ -237,30 +344,54 @@ eval "UNSHARED_LIB_SUFFIX=${TCL_UNSHARED_LIB_SUFFIX}"
 #--------------------------------------------------------------------
 # Shared libraries and static libraries have different names.
 # Also, windows libraries and unix libraries have different names.
-# (I chose to use the names that OpenSSL uses as its default names.)
+# For the OpenSSL version, I chose to use the same library names that
+# OpenSSL uses as its default names.
 #--------------------------------------------------------------------
 
-case "`uname -s`" in
-    *win32* | *WIN32* | *CYGWIN_NT*)
-	if test "${SHARED_BUILD}" = "1" ; then
-	    SHLIB_LD_LIBS="\"`${CYGPATH} ${TCL_BIN_DIR}/${TCL_STUB_LIB_FILE}`\" ${TCL_SHLIB_LD_LIBS} \"`${CYGPATH} ${SSL_LIB_DIR}/ssleay32.lib`\" \"`${CYGPATH} ${SSL_LIB_DIR}/libeay32.lib`\""
-	    eval "${PACKAGE}_LIB_FILE=${PACKAGE}${SHARED_LIB_SUFFIX}"
-	    RANLIB=:
-	else
-	    eval "${PACKAGE}_LIB_FILE=${PACKAGE}${UNSHARED_LIB_SUFFIX}"
-	fi
-	;;
-    *)
-	if test "${SHARED_BUILD}" = "1" ; then
-	    SHLIB_LD_LIBS="${TCL_STUB_LIB_SPEC} -L${SSL_LIB_DIR} -lssl -L${SSL_LIB_DIR} -lcrypto"
-	    eval "${PACKAGE}_LIB_FILE=lib${PACKAGE}${SHARED_LIB_SUFFIX}"
-	    RANLIB=:
-	else
-	    eval "${PACKAGE}_LIB_FILE=lib${PACKAGE}${UNSHARED_LIB_SUFFIX}"
-	fi
-	;;
-esac
+if test -n "${OPENSSL}"; then
 
+    case "`uname -s`" in
+	*win32* | *WIN32* | *CYGWIN_NT*|*CYGWIN_98*|*CYGWIN_95*)
+	    if test "${SHARED_BUILD}" = "1" ; then
+		SHLIB_LD_LIBS="\"`${CYGPATH} ${TCL_BIN_DIR}/${TCL_STUB_LIB_FILE}`\" ${TCL_SHLIB_LD_LIBS} \"`${CYGPATH} ${SSL_LIB_DIR}/ssleay32.lib`\" \"`${CYGPATH} ${SSL_LIB_DIR}/libeay32.lib`\""
+		eval "${PACKAGE}_LIB_FILE=${PACKAGE}${SHARED_LIB_SUFFIX}"
+		RANLIB=:
+	    else
+		eval "${PACKAGE}_LIB_FILE=${PACKAGE}${UNSHARED_LIB_SUFFIX}"
+	    fi
+	;;
+	*)
+	    if test "${SHARED_BUILD}" = "1" ; then
+		SHLIB_LD_LIBS="${TCL_STUB_LIB_SPEC} -L${SSL_LIB_DIR} -lssl -L${SSL_LIB_DIR} -lcrypto ${GCCPATH} ${GCCLIB}"
+		eval "${PACKAGE}_LIB_FILE=lib${PACKAGE}${SHARED_LIB_SUFFIX}"
+		RANLIB=:
+	    else
+		eval "${PACKAGE}_LIB_FILE=lib${PACKAGE}${UNSHARED_LIB_SUFFIX}"
+	    fi
+	;;
+    esac
+else
+    case "`uname -s`" in
+        *win32* | *WIN32* | *CYGWIN_NT*|*CYGWIN_98*|*CYGWIN_95*)
+	    if test "${SHARED_BUILD}" = "1" ; then
+	        SHLIB_LD_LIBS="\"`${CYGPATH} ${TCL_BIN_DIR}/${TCL_STUB_LIB_FILE}`\" ${TCL_SHLIB_LD_LIBS} \"`${CYGPATH} ${SSL_LIB_DIR}/sslc32.lib`\""
+	        eval "${PACKAGE}_LIB_FILE=${PACKAGE}${SHARED_LIB_SUFFIX}"
+	        RANLIB=:
+	    else
+	        eval "${PACKAGE}_LIB_FILE=${PACKAGE}${UNSHARED_LIB_SUFFIX}"
+	    fi
+	;;
+        *)
+	    if test "${SHARED_BUILD}" = "1" ; then
+	        SHLIB_LD_LIBS="${TCL_STUB_LIB_SPEC} -L${SSL_LIB_DIR} -lsslc"
+	        eval "${PACKAGE}_LIB_FILE=lib${PACKAGE}${SHARED_LIB_SUFFIX}"
+	        RANLIB=:
+	    else
+	        eval "${PACKAGE}_LIB_FILE=lib${PACKAGE}${UNSHARED_LIB_SUFFIX}"
+	    fi
+	;;
+    esac
+fi
 
 AC_SUBST(tls_LIB_FILE)
 AC_SUBST(SHLIB_LD_LIBS)

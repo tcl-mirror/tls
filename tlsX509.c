@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 1997-1999 Sensus Consulting Ltd.
+ * Copyright (C) 1997-2000 Sensus Consulting Ltd.
  * Matt Newman <matt@sensus.org>
  *
- * $Header: /cvs/tcl/tls/generic/tlsX509.c,v 1.1 1999/09/26 21:47:45 matt Exp $
+ * $Header: /home/cvs/external/tls/tlsX509.c,v 1.1.1.1 2000/01/19 22:10:58 aborr Exp $
  */
 #include "tlsInt.h"
 

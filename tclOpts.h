@@ -1,7 +1,7 @@
 /*
- *  Copyright (C) 1997-1999 Matt Newman <matt@novadigm.com>
+ *  Copyright (C) 1997-2000 Matt Newman <matt@novadigm.com>
  *
- *  $Header: /cvs/tcl/tls/generic/tclOpts.h,v 1.4 1999/06/22 06:08:20 matt Exp $
+ *  $Header: /home/cvs/external/tls/tclOpts.h,v 1.1.1.1 2000/01/19 22:10:58 aborr Exp $
  *
  * Stylized option processing - requires consitent
  * external vars: opt, idx, objc, objv

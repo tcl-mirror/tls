@@ -1,7 +1,7 @@
 #
-# Copyright (C) 1997-1999 Matt Newman <matt@novadigm.com>
+# Copyright (C) 1997-2000 Matt Newman <matt@novadigm.com>
 #
-# $Header: /cvs/tcl/tls/tests/tls.tcl,v 1.10 1999/09/06 19:25:30 matt Exp $
+# $Header: /home/cvs/external/tls/tests/tls.tcl,v 1.3 2000/06/05 20:25:42 aborr Exp $
 #
 set dir [file dirname [info script]]
 regsub {\.} [info tclversion] {} vshort
@@ -20,6 +20,6 @@ proc bgerror {err} {
     puts stderr "BG Error: $errorInfo"
 }
 
-source $dir/../library/tls.tcl
+source $dir/../tls.tcl
 set tls::debug 2
 

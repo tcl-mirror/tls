@@ -1,7 +1,7 @@
 /*
- * Copyright (C) 1997-1999 Matt Newman <matt@novadigm.com>
+ * Copyright (C) 1997-2000 Matt Newman <matt@novadigm.com>
  *
- * $Header: /cvs/tcl/tls/generic/tlsIO.c,v 1.15 1999/09/26 22:24:11 matt Exp $
+ * $Header: /home/cvs/external/tls/tlsIO.c,v 1.7 2000/06/05 18:09:54 welch Exp $
  *
  * TLS (aka SSL) Channel - can be layered on any bi-directional
  * Tcl_Channel (Note: Requires Trf Core Patch)
@@ -50,7 +50,24 @@ static void	ChannelHandlerTimer _ANSI_ARGS_ ((ClientData clientData));
  * This structure describes the channel type structure for TCP socket
  * based IO:
  */
-
+#ifdef TCL_CHANNEL_VERSION_2
+static Tcl_ChannelType tlsChannelType = {
+    "tls",		/* Type name. */
+    TCL_CHANNEL_VERSION_2,	/* A NG channel */
+    CloseProc,		/* Close proc. */
+    InputProc,		/* Input proc. */
+    OutputProc,		/* Output proc. */
+    NULL,		/* Seek proc. */
+    NULL,		/* Set option proc. */
+    GetOptionProc,	/* Get option proc. */
+    WatchProc,		/* Initialize notifier. */
+    GetHandleProc,	/* Get file handle out of channel. */
+    NULL,		/* Close2Proc. */
+    BlockModeProc,	/* Set blocking/nonblocking mode.*/
+    NULL,		/* FlushProc. */
+    NULL,		/* handlerProc. */
+};
+#else
 static Tcl_ChannelType tlsChannelType = {
     "tls",		/* Type name. */
     BlockModeProc,	/* Set blocking/nonblocking mode.*/
@@ -63,6 +80,7 @@ static Tcl_ChannelType tlsChannelType = {
     WatchProc,		/* Initialize notifier. */
     GetHandleProc,	/* Get file handle out of channel. */
 };
+#endif
 
 Tcl_ChannelType *Tls_ChannelType()
 {
@@ -98,8 +116,12 @@ BlockModeProc(ClientData instanceData,	/* Socket state. */
     } else {
 	statePtr->flags &= ~(TLS_TCL_ASYNC);
     }
+#ifdef TCL_CHANNEL_VERSION_2
+    return 0;
+#else
     return Tcl_SetChannelOption(statePtr->interp, Tls_GetParent(statePtr),
 		"-blocking", (mode == TCL_MODE_NONBLOCKING) ? "0" : "1");
+#endif
 }
 
 /*
@@ -126,19 +148,15 @@ CloseProc(ClientData instanceData,	/* The socket to close. */
              Tcl_Interp *interp)	/* For error reporting - unused. */
 {
     State *statePtr = (State *) instanceData;
-#if TCL_MAJOR_VERSION == 8 && TCL_MINOR_VERSION < 2
-    Tcl_Channel parent = Tls_GetParent(statePtr);
-#else
-    Tcl_Channel parent = statePtr->self; /* 'self' already refers to our parent */
-#endif
 
     dprintf(stderr,"\nCloseProc(0x%x)", statePtr);
+
     /*
      * Remove event handler to underlying channel, this could
      * be because we are closing for real, or being "unstacked".
      */
 
-    Tcl_DeleteChannelHandler( parent,
+    Tcl_DeleteChannelHandler(Tls_GetParent(statePtr),
 	ChannelHandler, (ClientData) statePtr);
 
     if (statePtr->timer != (Tcl_TimerToken)NULL) {
@@ -146,6 +164,7 @@ CloseProc(ClientData instanceData,	/* The socket to close. */
 	statePtr->timer = (Tcl_TimerToken)NULL;
     }
 
+    Tls_Clean(statePtr);
     Tcl_EventuallyFree( (ClientData)statePtr, Tls_Free);
     return TCL_OK;
 }
@@ -340,6 +359,26 @@ GetOptionProc(ClientData instanceData,	/* Socket state. */
                  Tcl_DString *dsPtr)	         /* Where to store the computed value
                                                   * initialized by caller. */
 {
+#ifdef TCL_CHANNEL_VERSION_2
+    State *statePtr = (State *) instanceData;
+    Tcl_Channel downChan = Tls_GetParent(statePtr);
+    Tcl_DriverGetOptionProc *getOptionProc;
+
+    getOptionProc = Tcl_ChannelGetOptionProc(Tcl_GetChannelType(downChan));
+    if (getOptionProc != NULL) {
+	return (*getOptionProc)(Tcl_GetChannelInstanceData(downChan),
+		interp, optionName, dsPtr);
+    } else if (optionName == (char*) NULL) {
+	/*
+	 * Request is query for all options, this is ok.
+	 */
+	return TCL_OK;
+    }
+    /*
+     * Request for a specific option has to fail, we don't have any.
+     */
+    return TCL_ERROR;
+#else
     State *statePtr = (State *) instanceData;
     size_t len = 0;
 
@@ -360,6 +399,7 @@ GetOptionProc(ClientData instanceData,	/* Socket state. */
     }
 #endif
     return TCL_OK;
+#endif
 }
 
 /*
@@ -395,13 +435,18 @@ WatchProc(ClientData instanceData,	/* The socket state. */
 	 * Remove event handler to underlying channel, this could
 	 * be because we are closing for real, or being "unstacked".
 	 */
-	Tcl_DeleteChannelHandler( Tls_GetParent(statePtr), ChannelHandler, (ClientData) statePtr);
+
+	Tcl_DeleteChannelHandler(Tls_GetParent(statePtr),
+		ChannelHandler, (ClientData) statePtr);
     }
     statePtr->watchMask = mask;
     if (statePtr->watchMask) {
-	/* Setup active monitor for events on underlying Channel */
-	Tcl_CreateChannelHandler( Tls_GetParent(statePtr), statePtr->watchMask,
-				ChannelHandler, (ClientData) statePtr);
+	/*
+	 * Setup active monitor for events on underlying Channel.
+	 */
+
+	Tcl_CreateChannelHandler(Tls_GetParent(statePtr),
+		statePtr->watchMask, ChannelHandler, (ClientData) statePtr);
     }
 }
 
@@ -481,8 +526,22 @@ dprintf(stderr, "HANDLER(0x%x)\n", mask);
     if (BIO_pending(statePtr->bio)) {
 	mask |= TCL_READABLE;
     }
-    Tcl_NotifyChannel(statePtr->self, mask);
 
+    /*
+     * The following NotifyChannel calls seems to be important, but
+     * we don't know why.  It looks like if the mask is ever non-zero
+     * that it will enter an infinite loop.
+     *
+     * Notify the upper channel of the current BIO state so the event
+     * continues to propagate up the chain.
+     *
+     * stanton: It looks like this could result in an infinite loop if
+     * the upper channel doesn't cause ChannelHandler to be removed
+     * before Tcl_NotifyChannel calls channel handlers on the lower channel.
+     */
+    
+    Tcl_NotifyChannel(statePtr->self, mask);
+    
     if (statePtr->timer != (Tcl_TimerToken)NULL) {
 	Tcl_DeleteTimerHandler(statePtr->timer);
 	statePtr->timer = (Tcl_TimerToken)NULL;
@@ -491,8 +550,8 @@ dprintf(stderr, "HANDLER(0x%x)\n", mask);
 	/*
 	 * Data is waiting, flush it out in short time
 	 */
-	statePtr->timer = Tcl_CreateTimerHandler (TLS_TCL_DELAY, ChannelHandlerTimer,
-					   (ClientData) statePtr);
+	statePtr->timer = Tcl_CreateTimerHandler(TLS_TCL_DELAY,
+		ChannelHandlerTimer, (ClientData) statePtr);
     }
     Tcl_Release( (ClientData)statePtr);
 }
@@ -608,6 +667,9 @@ Tcl_Channel
 Tls_GetParent( statePtr )
     State *statePtr;
 {
+#ifdef TCL_CHANNEL_VERSION_2
+    return Tcl_GetStackedChannel(statePtr->self);
+#else
 #if TCL_MAJOR_VERSION == 8 && TCL_MINOR_VERSION < 2
     return statePtr->parent;
 #else
@@ -626,27 +688,29 @@ Tls_GetParent( statePtr )
      * and then returns the superceding channel to that. (AK)
      */
  
-  Tcl_Channel self = statePtr->self;
-  Tcl_Channel next;
+    Tcl_Channel self = statePtr->self;
+    Tcl_Channel next;
 
-  while ((ClientData) statePtr != Tcl_GetChannelInstanceData (self)) {
-    next = Tcl_GetStackedChannel (self);
-    if (next == (Tcl_Channel) NULL) {
-      /* 09/24/1999 Unstacking bug, found by Matt Newman <matt@sensus.org>.
-       *
-       * We were unable to find the channel structure for this
-       * transformation in the chain of stacked channel. This
-       * means that we are currently in the process of unstacking
-       * it *and* there were some bytes waiting which are now
-       * flushed. In this situation the pointer to the channel
-       * itself already refers to the parent channel we have to
-       * write the bytes into, so we return that.
-       */
-      return statePtr->self;
+    while ((ClientData) statePtr != Tcl_GetChannelInstanceData (self)) {
+	next = Tcl_GetStackedChannel (self);
+	if (next == (Tcl_Channel) NULL) {
+	    /* 09/24/1999 Unstacking bug,
+	     * found by Matt Newman <matt@sensus.org>.
+	     *
+	     * We were unable to find the channel structure for this
+	     * transformation in the chain of stacked channel. This
+	     * means that we are currently in the process of unstacking
+	     * it *and* there were some bytes waiting which are now
+	     * flushed. In this situation the pointer to the channel
+	     * itself already refers to the parent channel we have to
+	     * write the bytes into, so we return that.
+	     */
+	    return statePtr->self;
+	}
+	self = next;
     }
-    self = next;
-  }
 
-  return Tcl_GetStackedChannel (self);
+    return Tcl_GetStackedChannel (self);
+#endif
 #endif
 }

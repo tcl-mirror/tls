@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 1997-1999 Matt Newman <matt@novadigm.com>
  *
- * $Header: /cvs/tcl/tls/generic/tls.c,v 1.15 1999/09/26 22:53:24 matt Exp $
+ * $Header: /home/cvs/external/tls/tls.c,v 1.6 2000/06/06 01:34:11 welch Exp $
  *
  * TLS (aka SSL) Channel - can be layered on any bi-directional
  * Tcl_Channel (Note: Requires Trf Core Patch)
@@ -86,14 +86,26 @@ static DH *get_dh512()
 }
 #endif
 
+
+/*
+ * We lose the tcl password callback when we use the RSA BSAFE SSL-C 1.1.2
+ * libraries instead of the current OpenSSL libraries.
+ */
+
+#ifdef BSAFE
+#define PRE_OPENSSL_0_9_4 1
+#endif
+
 /*
  * Per OpenSSL 0.9.4 Compat
  */
+
 #ifndef STACK_OF
 #define STACK_OF(x)			STACK
 #define sk_SSL_CIPHER_num(sk)		sk_num((sk))
 #define sk_SSL_CIPHER_value( sk, index)	(SSL_CIPHER*)sk_value((sk), (index))
 #endif
+
 
 /*
  *-------------------------------------------------------------------
@@ -528,6 +540,12 @@ HandshakeObjCmd(clientData, interp, objc, objv)
     if (chan == (Tcl_Channel) NULL) {
         return TCL_ERROR;
     }
+#ifdef TCL_CHANNEL_VERSION_2
+    /*
+     * Make sure to operate on the topmost channel
+     */
+    chan = Tcl_GetTopChannel(chan);
+#endif
     if (Tcl_GetChannelType(chan) != Tls_ChannelType()) {
         Tcl_AppendResult(interp, "bad channel \"", Tcl_GetChannelName(chan),
                 "\": not a TLS channel", NULL);
@@ -620,6 +638,12 @@ ImportObjCmd(clientData, interp, objc, objv)
     if (chan == (Tcl_Channel) NULL) {
         return TCL_ERROR;
     }
+#ifdef TCL_CHANNEL_VERSION_2
+    /*
+     * Make sure to operate on the topmost channel
+     */
+    chan = Tcl_GetTopChannel(chan);
+#endif
 
     for (idx = 2; idx < objc; idx++) {
 	char *opt = Tcl_GetStringFromObj(objv[idx], NULL);
@@ -654,6 +678,13 @@ ImportObjCmd(clientData, interp, objc, objv)
     proto |= (ssl3 ? TLS_PROTO_SSL3 : 0);
     proto |= (tls1 ? TLS_PROTO_TLS1 : 0);
 
+    /* reset to NULL if blank string provided */
+    if (cert && !*cert) cert = NULL;
+    if (key && !*key) key = NULL;
+    if (ciphers && !*ciphers) ciphers = NULL;
+    if (CAfile && !*CAfile) CAfile = NULL;
+    if (CAdir && !*CAdir) CAdir = NULL;
+
     if (model != NULL) {
 	int mode;
 	/* Get the "model" context */
@@ -661,6 +692,12 @@ ImportObjCmd(clientData, interp, objc, objv)
 	if (chan == (Tcl_Channel)0) {
 	    return TCL_ERROR;
 	}
+#ifdef TCL_CHANNEL_VERSION_2
+	/*
+	 * Make sure to operate on the topmost channel
+	 */
+	chan = Tcl_GetTopChannel(chan);
+#endif
 	if (Tcl_GetChannelType(chan) != Tls_ChannelType()) {
 	    Tcl_AppendResult(interp, "bad channel \"", Tcl_GetChannelName(chan),
 		    "\": not a TLS channel", NULL);
@@ -704,12 +741,20 @@ ImportObjCmd(clientData, interp, objc, objv)
 				Tls_ChannelType(), (ClientData) statePtr,
 			       (TCL_READABLE | TCL_WRITABLE), statePtr->parent);
 #else
+#ifdef TCL_CHANNEL_VERSION_2
+    statePtr->self = Tcl_StackChannel(interp, Tls_ChannelType(),
+	    (ClientData) statePtr, (TCL_READABLE | TCL_WRITABLE), chan);
+#else
     statePtr->self = chan;
     Tcl_StackChannel( interp, Tls_ChannelType(), (ClientData) statePtr,
-			       (TCL_READABLE | TCL_WRITABLE), chan);
+	    (TCL_READABLE | TCL_WRITABLE), chan);
+#endif
 #endif
     if (statePtr->self == (Tcl_Channel) NULL) {
-        Tcl_EventuallyFree( (ClientData)statePtr, Tls_Free);
+	/*
+	 * No use of Tcl_EventuallyFree because no possible Tcl_Preserve.
+	 */
+	Tls_Free((char *) statePtr);
         return TCL_ERROR;
     }
 
@@ -737,7 +782,7 @@ ImportObjCmd(clientData, interp, objc, objv)
         Tcl_AppendResult(interp,
                          "couldn't construct ssl session: ", REASON(),
                          (char *) NULL);
-        Tcl_EventuallyFree( (ClientData)statePtr, Tls_Free);
+	Tls_Free((char *) statePtr);
         return TCL_ERROR;
     }
 
@@ -845,7 +890,10 @@ CTX_Init(interp, proto, key, cert, CAdir, CAfile, ciphers)
 
     /* set some callbacks */
     SSL_CTX_set_default_passwd_cb(ctx, PasswordCallback);
+
+#ifndef BSAFE
     SSL_CTX_set_default_passwd_cb_userdata(ctx, (void *)interp);
+#endif
 
 #ifndef NO_DH
     {
@@ -965,6 +1013,12 @@ StatusObjCmd(clientData, interp, objc, objv)
     if (chan == (Tcl_Channel)0) {
 	return TCL_ERROR;
     }
+#ifdef TCL_CHANNEL_VERSION_2
+    /*
+     * Make sure to operate on the topmost channel
+     */
+    chan = Tcl_GetTopChannel(chan);
+#endif
     if (Tcl_GetChannelType(chan) != Tls_ChannelType()) {
         Tcl_AppendResult(interp, "bad channel \"", Tcl_GetChannelName(chan),
                 "\": not a TLS channel", NULL);
@@ -1009,18 +1063,46 @@ Tls_Free( char *blockPtr )
 {
     State *statePtr = (State *)blockPtr;
 
+    Tls_Clean(statePtr);
+    Tcl_Free(blockPtr);
+}
+
+/*
+ *-------------------------------------------------------------------
+ *
+ * Tls_Clean --
+ *
+ *	This procedure cleans up when a SSL socket based channel
+ *	is closed and its reference count falls below 1.  This should
+ *	be called synchronously by the CloseProc, not in the
+ *	EventuallyFree callback.
+ *
+ * Results:
+ *	none
+ *
+ * Side effects:
+ *	Frees all the state
+ *
+ *-------------------------------------------------------------------
+ */
+void
+Tls_Clean(State *statePtr)
+{
     /* we're assuming here that we're single-threaded */
     if (statePtr->ssl) {
 	SSL_shutdown(statePtr->ssl);
 	SSL_free(statePtr->ssl);
+	statePtr->ssl = NULL;
     }
-    if (statePtr->callback)
+    if (statePtr->callback) {
 	Tcl_DecrRefCount(statePtr->callback);
+	statePtr->callback = NULL;
+    }
 
-    if (statePtr->timer != (Tcl_TimerToken)NULL)
+    if (statePtr->timer != (Tcl_TimerToken)NULL) {
 	Tcl_DeleteTimerHandler (statePtr->timer);
-
-    Tcl_Free((char *)statePtr);
+	statePtr->timer = NULL;
+    }
 }
 
 /*

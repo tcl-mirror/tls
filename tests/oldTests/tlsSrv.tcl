@@ -1,7 +1,7 @@
 #
-# Copyright (C) 1997-1999 Matt Newman <matt@novadigm.com>
+# Copyright (C) 1997-2000 Matt Newman <matt@novadigm.com>
 #
-# $Header: /cvs/tcl/tls/tests/tlsSrv.tcl,v 1.11 1999/08/21 23:15:57 matt Exp $
+# $Header: /home/cvs/external/tls/tests/tlsSrv.tcl,v 1.2 2000/01/20 01:56:54 aborr Exp $
 #
 # Sample Tls-enabled server
 #

@@ -1,7 +1,7 @@
 /*
- * Copyright (C) 1997-1999 Matt Newman <matt@novadigm.com>
+ * Copyright (C) 1997-2000 Matt Newman <matt@novadigm.com>
  *
- * $Header: /cvs/tcl/tls/generic/tlsInt.h,v 1.12 1999/09/26 22:53:25 matt Exp $
+ * $Header: /home/cvs/external/tls/tlsInt.h,v 1.4 2000/06/06 01:04:35 stanton Exp $
  *
  * TLS (aka SSL) Channel - can be layered on any bi-directional
  * Tcl_Channel (Note: Requires Trf Core Patch)
@@ -32,7 +32,11 @@
 #define NO_SSL2
 #endif
 
+#ifdef BSAFE
+#include <ssl.h>
+#else
 #include <openssl/ssl.h>
+#endif
 
 #ifdef TCL_STORAGE_CLASS
 # undef TCL_STORAGE_CLASS
@@ -112,6 +116,7 @@ EXTERN Tcl_Channel	Tls_GetParent _ANSI_ARGS_((State *statePtr));
 EXTERN Tcl_Obj*		Tls_NewX509Obj _ANSI_ARGS_ (( Tcl_Interp *interp, X509 *cert));
 EXTERN void		Tls_Error _ANSI_ARGS_ ((State *statePtr, char *msg));
 EXTERN void		Tls_Free _ANSI_ARGS_ ((char *blockPtr));
+EXTERN void		Tls_Clean _ANSI_ARGS_ ((State *statePtr));
 EXTERN int		Tls_WaitForConnect _ANSI_ARGS_(( State *statePtr,
 							int *errorCodePtr));
 
