@@ -1,7 +1,7 @@
 /*
- * Copyright (C) 1997-1999 Matt Newman <matt@novadigm.com>
+ * Copyright (C) 1997-2000 Matt Newman <matt@novadigm.com>
  *
- * $Header: /cvs/tcl/tls/generic/tlsInt.h,v 1.12 1999/09/26 22:53:25 matt Exp $
+ * $Header: /home/cvs/external/tls/tlsInt.h,v 1.1.1.1 2000/01/19 22:10:58 aborr Exp $
  *
  * TLS (aka SSL) Channel - can be layered on any bi-directional
  * Tcl_Channel (Note: Requires Trf Core Patch)

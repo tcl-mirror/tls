@@ -1,7 +1,7 @@
 /*
- * Copyright (C) 1997-1999 Matt Newman <matt@novadigm.com>
+ * Copyright (C) 1997-2000 Matt Newman <matt@novadigm.com>
  *
- * $Header: /cvs/tcl/tls/generic/tlsBIO.c,v 1.6 1999/08/21 23:15:56 matt Exp $
+ * $Header: /home/cvs/external/tls/tlsBIO.c,v 1.1.1.1 2000/01/19 22:10:58 aborr Exp $
  *
  * Provides BIO layer to interface openssl to Tcl.
  */
