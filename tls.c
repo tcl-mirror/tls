@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 1997-1999 Matt Newman <matt@novadigm.com>
  *
- * $Header: /home/cvs/external/tls/tls.c,v 1.4 2000/06/05 18:09:53 welch Exp $
+ * $Header: /home/cvs/external/tls/tls.c,v 1.5 2000/06/06 01:04:35 stanton Exp $
  *
  * TLS (aka SSL) Channel - can be layered on any bi-directional
  * Tcl_Channel (Note: Requires Trf Core Patch)
@@ -728,6 +728,9 @@ ImportObjCmd(clientData, interp, objc, objv)
 			       (TCL_READABLE | TCL_WRITABLE), chan);
 #endif
     if (statePtr->self == (Tcl_Channel) NULL) {
+	/*
+	 * No use of Tcl_EventuallyFree because no possible Tcl_Preserve.
+	 */
 	Tls_Free((char *) statePtr);
         return TCL_ERROR;
     }
