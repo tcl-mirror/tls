@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 1997-2000 Matt Newman <matt@novadigm.com>
  *
- * $Header: /cvsroot/tls/tls/tlsInt.h,v 1.11 2004/02/04 04:02:19 razzell Exp $
+ * $Header: /cvsroot/tls/tls/tlsInt.h,v 1.12 2004/03/24 05:22:53 razzell Exp $
  *
  * TLS (aka SSL) Channel - can be layered on any bi-directional
  * Tcl_Channel (Note: Requires Trf Core Patch)
@@ -23,6 +23,12 @@
 #include "tls.h"
 #include <errno.h>
 #include <string.h>
+
+#ifdef WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <wincrypt.h> /* OpenSSL needs this on Windows */
+#endif
 
 #ifdef NO_PATENTS
 #define NO_IDEA

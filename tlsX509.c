@@ -2,9 +2,20 @@
  * Copyright (C) 1997-2000 Sensus Consulting Ltd.
  * Matt Newman <matt@sensus.org>
  *
- * $Header: /cvsroot/tls/tls/tlsX509.c,v 1.3 2003/07/07 20:24:49 hobbs Exp $
+ * $Header: /cvsroot/tls/tls/tlsX509.c,v 1.4 2004/03/17 17:53:57 razzell Exp $
  */
 #include "tlsInt.h"
+
+/*
+ *  Ensure these are not macros - known to be defined on Win32 
+ */
+#ifdef min
+#undef min
+#endif
+
+#ifdef max
+#undef max
+#endif
 
 static int min(int a, int b)
 {
