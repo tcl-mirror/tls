@@ -1,7 +1,7 @@
 #
-# Copyright (C) 1997-1999 Matt Newman <matt@novadigm.com>
+# Copyright (C) 1997-2000 Matt Newman <matt@novadigm.com>
 #
-# $Header: /cvs/tcl/tls/tests/tls.tcl,v 1.10 1999/09/06 19:25:30 matt Exp $
+# $Header: /home/cvs/external/tls/tests/tls.tcl,v 1.1.1.1 2000/01/19 22:10:59 aborr Exp $
 #
 set dir [file dirname [info script]]
 regsub {\.} [info tclversion] {} vshort
