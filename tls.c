@@ -5,7 +5,7 @@
  *	Copyright (C) 2002 ActiveState Corporation
  *	Copyright (C) 2003 Starfish Systems 
  *
- * $Header: /cvsroot/tls/tls/tls.c,v 1.16 2003/05/15 21:02:10 razzell Exp $
+ * $Header: /cvsroot/tls/tls/tls.c,v 1.17 2003/07/07 20:24:49 hobbs Exp $
  *
  * TLS (aka SSL) Channel - can be layered on any bi-directional
  * Tcl_Channel (Note: Requires Trf Core Patch)
@@ -196,7 +196,7 @@ InfoCallback(SSL *ssl, int where, int ret)
 	Tcl_ListObjAppendElement( statePtr->interp, cmdPtr,
 	    Tcl_NewStringObj( SSL_state_string_long(ssl), -1) );
     } else if (where & SSL_CB_ALERT) {
-	char *cp = (char *) SSL_alert_desc_string_long(ret);
+	CONST char *cp = (char *) SSL_alert_desc_string_long(ret);
 
 	Tcl_ListObjAppendElement( statePtr->interp, cmdPtr,
 	    Tcl_NewStringObj( cp, -1) );
