@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 1997-2000 Matt Newman <matt@novadigm.com>
  *
- * $Header: /home/cvs/external/tls/tlsInt.h,v 1.2 2000/01/20 01:52:44 aborr Exp $
+ * $Header: /home/cvs/external/tls/tlsInt.h,v 1.3 2000/05/04 20:21:06 aborr Exp $
  *
  * TLS (aka SSL) Channel - can be layered on any bi-directional
  * Tcl_Channel (Note: Requires Trf Core Patch)
@@ -110,6 +110,7 @@ typedef struct State {
  * Forward declarations
  */
 
+EXTERN void		Tls_Clean _ANSI_ARGS_((State *blockPtr));
 EXTERN Tcl_ChannelType *Tls_ChannelType _ANSI_ARGS_((void));
 EXTERN Tcl_Channel	Tls_GetParent _ANSI_ARGS_((State *statePtr));
 
