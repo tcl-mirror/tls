@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 1997-1999 Matt Newman <matt@novadigm.com>
  *
- * $Header: /cvs/tcl/tls/generic/tls.c,v 1.15 1999/09/26 22:53:24 matt Exp $
+ * $Header: /home/cvs/external/tls/tls.c,v 1.1.1.1 2000/01/19 22:10:58 aborr Exp $
  *
  * TLS (aka SSL) Channel - can be layered on any bi-directional
  * Tcl_Channel (Note: Requires Trf Core Patch)
@@ -653,6 +653,13 @@ ImportObjCmd(clientData, interp, objc, objv)
     proto |= (ssl2 ? TLS_PROTO_SSL2 : 0);
     proto |= (ssl3 ? TLS_PROTO_SSL3 : 0);
     proto |= (tls1 ? TLS_PROTO_TLS1 : 0);
+
+    /* reset to NULL if blank string provided */
+    if (cert && !*cert) cert = NULL;
+    if (key && !*key) key = NULL;
+    if (ciphers && !*ciphers) ciphers = NULL;
+    if (CAfile && !*CAfile) CAfile = NULL;
+    if (CAdir && !*CAdir) CAdir = NULL;
 
     if (model != NULL) {
 	int mode;
