@@ -2,7 +2,7 @@
  * Copyright (C) 1997-2000 Sensus Consulting Ltd.
  * Matt Newman <matt@sensus.org>
  *
- * $Header: /home/cvs/external/tls/tlsX509.c,v 1.1.1.1 2000/01/19 22:10:58 aborr Exp $
+ * $Header: /cvsroot/tls/tls/tlsX509.c,v 1.2 2000/01/20 01:53:14 aborr Exp $
  */
 #include "tlsInt.h"
 
@@ -76,6 +76,11 @@ Tls_NewX509Obj( interp, cert)
     char issuer[BUFSIZ];
     char notBefore[BUFSIZ];
     char notAfter[BUFSIZ];
+#ifndef NO_SSL_SHA
+    int shai;
+    char sha_hash[SHA_DIGEST_LENGTH*2];
+    const char *shachars="0123456789ABCDEF";
+#endif
 
     serial = ASN1_INTEGER_get(X509_get_serialNumber(cert));
     X509_NAME_oneline(X509_get_subject_name(cert),subject,sizeof(subject));
@@ -84,6 +89,18 @@ Tls_NewX509Obj( interp, cert)
     strcpy( notBefore, ASN1_UTCTIME_tostr( X509_get_notBefore(cert) ));
     strcpy( notAfter, ASN1_UTCTIME_tostr( X509_get_notAfter(cert) ));
 
+#ifndef NO_SSL_SHA
+    for (shai=0;shai<SHA_DIGEST_LENGTH;shai++)
+    {
+        sha_hash[shai * 2]=shachars[(cert->sha1_hash[shai] & 0xF0) >> 4];
+        sha_hash[shai * 2 + 1]=shachars[(cert->sha1_hash[shai] & 0x0F)];
+    }
+    Tcl_ListObjAppendElement( interp, certPtr,
+	    Tcl_NewStringObj( "sha1_hash", -1) );
+    Tcl_ListObjAppendElement( interp, certPtr,
+	    Tcl_NewStringObj( sha_hash, SHA_DIGEST_LENGTH*2) );
+
+#endif
     Tcl_ListObjAppendElement( interp, certPtr,
 	    Tcl_NewStringObj( "subject", -1) );
     Tcl_ListObjAppendElement( interp, certPtr,
