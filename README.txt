@@ -1,7 +1,7 @@
 Copyright (C) 1997-2000 Matt Newman <matt@novadigm.com>
 TLS 1.4.1 Copyright (C) 2000 Ajuba Solutions
 
-$Header: /cvsroot/tls/tls/README.txt,v 1.3 2001/06/21 23:34:20 hobbs Exp $
+$Header: /cvsroot/tls/tls/README.txt,v 1.4 2003/05/15 20:44:46 razzell Exp $
 
 TLS (aka SSL) Channel - can be layered on any bi-directional Tcl_Channel.
 
@@ -45,4 +45,4 @@ Also I would like to acknowledge the kind support of Novadigm Inc, my
 current employer, which made this possible.
 
 
-Matt Newman
+Matt Newman 
