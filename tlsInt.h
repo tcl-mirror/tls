@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 1997-2000 Matt Newman <matt@novadigm.com>
  *
- * $Header: /home/cvs/external/tls/tlsInt.h,v 1.6 2000/08/15 00:02:08 hobbs Exp $
+ * $Header: /home/cvs/external/tls/tlsInt.h,v 1.7 2000/08/15 18:49:31 hobbs Exp $
  *
  * TLS (aka SSL) Channel - can be layered on any bi-directional
  * Tcl_Channel (Note: Requires Trf Core Patch)
@@ -34,8 +34,10 @@
 
 #ifdef BSAFE
 #include <ssl.h>
+#include <err.h>
 #else
 #include <openssl/ssl.h>
+#include <openssl/err.h>
 #endif
 
 #ifdef TCL_STORAGE_CLASS
