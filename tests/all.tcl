@@ -4,10 +4,10 @@
 # tests.  Execute it by invoking "source all.test" when running tcltest
 # in this directory.
 #
-# Copyright (c) 1998-2000 by Scriptics Corporation.
+# Copyright (c) 1998-2000 by Ajuba Solutions.
 # All rights reserved.
 # 
-# RCS: @(#) $Id: all.tcl,v 1.1 2000/02/03 21:20:51 wart Exp $
+# RCS: @(#) $Id: all.tcl,v 1.1 2000/02/05 00:31:51 aborr Exp $
 
 if {[lsearch [namespace children] ::tcltest] == -1} {
     package require tcltest
