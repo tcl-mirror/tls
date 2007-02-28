@@ -1,7 +1,7 @@
 #
 # Copyright (C) 1997-2000 Matt Newman <matt@novadigm.com> 
 #
-# $Header: /cvsroot/tls/tls/tls.tcl,v 1.6 2004/02/11 22:36:31 razzell Exp $
+# $Header: /cvsroot/tls/tls/tls.tcl,v 1.7 2004/12/17 16:02:03 patthoyts Exp $
 #
 namespace eval tls {
     variable logcmd tclLog
@@ -34,6 +34,7 @@ proc tls::init {args} {
 #
 proc tls::socket {args} {
     variable socketCmd
+    variable defaults
     set idx [lsearch $args -server]
     if {$idx != -1} {
 	set server 1
@@ -50,7 +51,7 @@ proc tls::socket {args} {
     }
     set argc [llength $args]
     set sopts {}
-    set iopts [concat [list -server $server] ${tls::defaults}]	;# Import options
+    set iopts [concat [list -server $server] $defaults]	;# Import options
 
     for {set idx 0} {$idx < $argc} {incr idx} {
 	set arg [lindex $args $idx]
