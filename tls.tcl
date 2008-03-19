@@ -1,7 +1,7 @@
 #
 # Copyright (C) 1997-2000 Matt Newman <matt@novadigm.com> 
 #
-# $Header: /cvsroot/tls/tls/tls.tcl,v 1.8 2007/02/28 23:33:41 patthoyts Exp $
+# $Header: /cvsroot/tls/tls/tls.tcl,v 1.9 2008/03/18 00:40:37 hobbs2 Exp $
 #
 namespace eval tls {
     variable logcmd tclLog
@@ -27,10 +27,10 @@ proc tls::initlib {dir dll} {
     # the dependent DLL's in the CWD, where they may be.
     set cwd [pwd]
     catch {cd $dir}
-    set res [catch {load [file join $dir $dll]} err]
+    set res [catch {uplevel #0 [list load [file join [pwd] $dll]]} err]
     catch {cd $cwd}
     if {$res} {
-	namespace delete tls
+	namespace eval [namespace parent] {namespace delete tls}
 	return -code $res $err
     }
     rename tls::initlib {}
