@@ -1,7 +1,7 @@
 #
 # Copyright (C) 1997-2000 Matt Newman <matt@novadigm.com> 
 #
-# $Header: /cvsroot/tls/tls/tls.tcl,v 1.10 2008/03/19 02:34:21 patthoyts Exp $
+# $Header: /cvsroot/tls/tls/tls.tcl,v 1.11 2009/04/23 23:12:07 hobbs2 Exp $
 #
 namespace eval tls {
     variable logcmd tclLog
@@ -87,6 +87,7 @@ proc tls::socket {args} {
 	switch -glob -- $server,$arg {
 	    0,-async	{lappend sopts $arg}
 	    0,-myport	-
+	    *,-type	-
 	    *,-myaddr	{lappend sopts $arg [lindex $args [incr idx]]}
 	    *,-cadir	-
 	    *,-cafile	-
