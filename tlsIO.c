@@ -2,7 +2,7 @@
  * Copyright (C) 1997-2000 Matt Newman <matt@novadigm.com>
  * Copyright (C) 2000 Ajuba Solutions
  *
- * $Header: /cvsroot/tls/tls/tlsIO.c,v 1.16 2007/06/22 21:20:38 hobbs2 Exp $
+ * $Header: /cvsroot/tls/tls/tlsIO.c,v 1.17 2014/12/08 19:09:06 andreas_kupries Exp $
  *
  * TLS (aka SSL) Channel - can be layered on any bi-directional
  * Tcl_Channel (Note: Requires Trf Core Patch)
@@ -345,6 +345,11 @@ TlsInputProc(ClientData instanceData,	/* Socket state. */
     if (!SSL_is_init_finished(statePtr->ssl)) {
 	bytesRead = Tls_WaitForConnect(statePtr, errorCodePtr);
 	if (bytesRead <= 0) {
+	    if (*errorCodePtr == ECONNRESET) {
+		/* Soft EOF */
+		*errorCodePtr = 0;
+		bytesRead = 0;
+	    }
 	    goto input;
 	}
     }
@@ -913,9 +918,6 @@ Tls_WaitForConnect( statePtr, errorCodePtr)
 		    continue;
 		}
 	    } else if (err == 0) {
-		if (Tcl_Eof(statePtr->self)) {
-		    return 0;
-		}
 		dprintf(stderr,"CR! ");
 		*errorCodePtr = ECONNRESET;
 		return -1;
